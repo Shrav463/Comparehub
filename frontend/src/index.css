@@ -1,0 +1,73 @@
+/* Tailwind v4 uses CSS-first imports */
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+/* Optional: line clamp helper (so you don't need a plugin) */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Full-height layout */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #f8fafc; /* slate-50 */
+  color: #0f172a;      /* slate-900 */
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* links */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
+}
+
+/* media */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Subtle ecommerce background glow (like your screenshot) */
+.bg-store {
+  background-image:
+    radial-gradient(circle at 18% 12%, rgba(99, 102, 241, 0.12), transparent 40%),
+    radial-gradient(circle at 88% 24%, rgba(34, 211, 238, 0.10), transparent 40%),
+    radial-gradient(circle at 46% 92%, rgba(236, 72, 153, 0.10), transparent 42%),
+    linear-gradient(#f8fafc, #f8fafc);
+}
+
+/* A tiny utility for subtle hover lift (used on cards/buttons) */
+.hover-lift {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
