@@ -91,9 +91,15 @@ func main() {
 
 	r := gin.Default()
 
-	// CORS for React dev server
+	// ✅ CORS: allow local dev + allow your deployed frontend via env
+	allowedOrigins := []string{"http://localhost:5173"} // keep local dev
+	if o := os.Getenv("FRONTEND_ORIGIN"); o != "" {
+		// Example: https://comparehub.vercel.app
+		allowedOrigins = append(allowedOrigins, o)
+	}
+
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -112,7 +118,7 @@ func main() {
 	r.GET("/analytics/top-deals", handlers.TopDeals(conn))
 
 	// -----------------------
-	// Analytics (ONLY ONCE)
+	// Analytics
 	// -----------------------
 	r.GET("/analytics/summary", handlers.AnalyticsSummary(conn))
 	r.POST("/track/click", handlers.TrackClick(conn))
@@ -137,8 +143,14 @@ func main() {
 		})
 	}
 
-	log.Println("🚀 Backend running on http://localhost:8080")
-	if err := r.Run(":8080"); err != nil {
+	// ✅ Render requires PORT and listening on 0.0.0.0
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080" // local fallback
+	}
+
+	log.Println("🚀 Backend running on port:", port)
+	if err := r.Run("0.0.0.0:" + port); err != nil {
 		log.Fatal(err)
 	}
 }
