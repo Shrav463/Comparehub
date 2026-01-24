@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
@@ -10,16 +9,33 @@ import (
 )
 
 func Open() *sql.DB {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	pass := os.Getenv("DB_PASSWORD")
-	name := os.Getenv("DB_NAME")
+	// ✅ Prefer DATABASE_URL (Render)
+	databaseURL := os.Getenv("DATABASE_URL")
 
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, pass, name)
+	var conn *sql.DB
+	var err error
 
-	conn, err := sql.Open("postgres", dsn)
+	if databaseURL != "" {
+		// Render / production
+		conn, err = sql.Open("postgres", databaseURL)
+	} else {
+		// Local development fallback
+		host := os.Getenv("DB_HOST")
+		port := os.Getenv("DB_PORT")
+		user := os.Getenv("DB_USER")
+		pass := os.Getenv("DB_PASSWORD")
+		name := os.Getenv("DB_NAME")
+
+		dsn := "host=" + host +
+			" port=" + port +
+			" user=" + user +
+			" password=" + pass +
+			" dbname=" + name +
+			" sslmode=disable"
+
+		conn, err = sql.Open("postgres", dsn)
+	}
+
 	if err != nil {
 		log.Fatal("sql.Open failed:", err)
 	}
@@ -27,5 +43,7 @@ func Open() *sql.DB {
 	if err := conn.Ping(); err != nil {
 		log.Fatal("db ping failed:", err)
 	}
+
+	log.Println("✅ Database connected")
 	return conn
 }
