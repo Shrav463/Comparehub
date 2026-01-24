@@ -80,3 +80,15 @@ CREATE TABLE IF NOT EXISTS click_events (
 
 CREATE INDEX IF NOT EXISTS idx_click_events_time
 ON click_events (created_at DESC);
+
+INSERT INTO offers (product_id, store_name, price, rating, url)
+SELECT id, 'Amazon', 499.99, 4.5, 'https://www.amazon.com/s?k=' || replace(name,' ','+')
+FROM products;
+
+INSERT INTO offers (product_id, store_name, price, rating, url)
+SELECT id, 'Best Buy', 519.99, 4.4, 'https://www.bestbuy.com/site/searchpage.jsp?st=' || replace(name,' ','%20')
+FROM products;
+
+INSERT INTO offers (product_id, store_name, price, rating, url)
+SELECT id, 'Walmart', 489.99, 4.3, 'https://www.walmart.com/search?q=' || replace(name,' ','+')
+FROM products;
