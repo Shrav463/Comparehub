@@ -720,9 +720,3 @@ SELECT p.id, s.id, 89.99, 4.6, 'https://www.walmart.com/search?q=jbl%20tune%2067
 FROM products p JOIN stores s ON s.name='Walmart'
 WHERE p.name='JBL Tune 670NC Bluetooth Wireless On-Ear Headphones' AND p.brand='JBL'
 ON CONFLICT (product_id, store_id, url) DO UPDATE SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
-
-INSERT INTO offers (product_id, store_name, price, rating, url)
-VALUES
-  (4, 'Amazon', 799.00, 4.6, 'https://www.amazon.com/s?k=Samsung+Galaxy+S24'),
-  (4, 'Best Buy', 819.99, 4.5, 'https://www.bestbuy.com/site/searchpage.jsp?st=Samsung+Galaxy+S24'),
-  (4, 'Walmart', 789.00, 4.4, 'https://www.walmart.com/search?q=Samsung+Galaxy+S24');
