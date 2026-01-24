@@ -99,12 +99,26 @@ func main() {
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: false,
-	}))
+    AllowOriginFunc: func(origin string) bool {
+        // local dev
+        if origin == "http://localhost:5173" {
+            return true
+        }
+        // allow your specific Vercel project domain
+        if origin == "https://comparehub-npo6cumsm-shrav463s-projects.vercel.app" {
+            return true
+        }
+        // allow any Vercel preview URLs (optional but very helpful)
+        if strings.HasSuffix(origin, ".vercel.app") {
+            return true
+        }
+        return false
+    },
+    AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+    AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+    ExposeHeaders:    []string{"Content-Length"},
+    AllowCredentials: false,
+}))
 
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
