@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	"github.com/lib/pq"
 
@@ -34,11 +35,26 @@ type OfferRow struct {
 	URL    string   `json:"url"`
 }
 
+// normalizeStoreKey makes store matching robust:
+// "Best Buy" -> "bestbuy", "BestBuy" -> "bestbuy"
+func normalizeStoreKey(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = strings.ReplaceAll(s, " ", "")
+	return s
+}
+
 func ListProducts(conn *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		storesParam := c.Query("stores")
 		condition := parseConditionParam(c.Query("condition"))
 		stores := parseStoresParam(storesParam)
+
+		// ✅ NEW: normalized store keys to handle BestBuy vs Best Buy
+		storesNorm := make([]string, 0, len(stores))
+		for _, s := range stores {
+			storesNorm = append(storesNorm, normalizeStoreKey(s))
+		}
+
 		q := c.Query("q")
 		category := c.DefaultQuery("category", "all")
 		sort := c.DefaultQuery("sort", "low") // low | high | rating
@@ -81,8 +97,9 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			order = "best_rating DESC"
 		}
 
-		// Best offer per product using LATERAL join, plus optional filters.
-		// We also LEFT JOIN product_specs to surface review_count in list views.
+		// ✅ UPDATED: store filter accepts either exact store name
+		// OR normalized store key match (BestBuy vs Best Buy).
+		// Also makes condition compare case-insensitive.
 		query := `
 			SELECT
 			  p.id, p.name, COALESCE(p.brand,''), COALESCE(p.category,''), COALESCE(p.description,''), COALESCE(p.image_url,''),
@@ -103,8 +120,11 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			  JOIN stores s ON s.id = o.store_id
 			  WHERE o.product_id = p.id
 			    AND o.active = true
-			    AND o.condition = $9
-			    AND s.name = ANY($10)
+			    AND lower(o.condition) = lower($9)
+			    AND (
+			      s.name = ANY($10)
+			      OR replace(lower(s.name), ' ', '') = ANY($11)
+			    )
 			  ORDER BY o.price ASC
 			  LIMIT 1
 			) bo ON true
@@ -119,7 +139,15 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			LIMIT $7 OFFSET $8;
 		`
 
-		rows, err := conn.Query(query, q, category, brand, minPrice, maxPrice, minRating, limit, offset, condition, pq.Array(stores))
+		rows, err := conn.Query(
+			query,
+			q, category, brand,
+			minPrice, maxPrice, minRating,
+			limit, offset,
+			condition,
+			pq.Array(stores),
+			pq.Array(storesNorm),
+		)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -129,7 +157,11 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 		out := []ProductRow{}
 		for rows.Next() {
 			var r ProductRow
-			if err := rows.Scan(&r.ID, &r.Name, &r.Brand, &r.Category, &r.Description, &r.ImageURL, &r.BestPrice, &r.BestSource, &r.BestRating, &r.BestURL, &r.ReviewCount); err != nil {
+			if err := rows.Scan(
+				&r.ID, &r.Name, &r.Brand, &r.Category, &r.Description, &r.ImageURL,
+				&r.BestPrice, &r.BestSource, &r.BestRating, &r.BestURL,
+				&r.ReviewCount,
+			); err != nil {
 				c.JSON(500, gin.H{"error": err.Error()})
 				return
 			}
@@ -145,6 +177,12 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		condition := parseConditionParam(c.Query("condition"))
 		stores := parseStoresParam(c.Query("stores"))
+
+		// ✅ NEW: normalized store keys (BestBuy vs Best Buy)
+		storesNorm := make([]string, 0, len(stores))
+		for _, s := range stores {
+			storesNorm = append(storesNorm, normalizeStoreKey(s))
+		}
 
 		var p struct {
 			ID          int        `json:"id"`
@@ -181,10 +219,13 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND o.condition = $2
-			  AND s.name = ANY($3)
+			  AND lower(o.condition) = lower($2)
+			  AND (
+			    s.name = ANY($3)
+			    OR replace(lower(s.name), ' ', '') = ANY($4)
+			  )
 			ORDER BY o.price ASC;
-		`, id, condition, pq.Array(stores))
+		`, id, condition, pq.Array(stores), pq.Array(storesNorm))
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -234,16 +275,25 @@ func GetOffers(conn *sql.DB) gin.HandlerFunc {
 		condition := parseConditionParam(c.Query("condition"))
 		stores := parseStoresParam(c.Query("stores"))
 
+		// ✅ NEW: normalized store keys (BestBuy vs Best Buy)
+		storesNorm := make([]string, 0, len(stores))
+		for _, s := range stores {
+			storesNorm = append(storesNorm, normalizeStoreKey(s))
+		}
+
 		rows, err := conn.Query(`
 			SELECT s.name, o.price, o.rating, o.url
 			FROM offers o
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND o.condition = $2
-			  AND s.name = ANY($3)
+			  AND lower(o.condition) = lower($2)
+			  AND (
+			    s.name = ANY($3)
+			    OR replace(lower(s.name), ' ', '') = ANY($4)
+			  )
 			ORDER BY o.price ASC;
-		`, id, condition, pq.Array(stores))
+		`, id, condition, pq.Array(stores), pq.Array(storesNorm))
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
