@@ -1,3 +1,7 @@
+-- ============================
+-- CompareHub schema (tables + indexes only)
+-- ============================
+
 CREATE TABLE IF NOT EXISTS stores (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -68,7 +72,6 @@ CREATE TABLE IF NOT EXISTS search_events (
 
 CREATE INDEX IF NOT EXISTS idx_search_events_time
 ON search_events (created_at DESC);
-
 
 CREATE TABLE IF NOT EXISTS click_events (
   id BIGSERIAL PRIMARY KEY,
