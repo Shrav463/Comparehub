@@ -53,14 +53,20 @@ func parseStoresParam(raw string) []string {
 	return out
 }
 
-func parseConditionParam(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+func parseConditionParam(v string) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return "Any"
+	}
+	vLower := strings.ToLower(v)
+	if vLower == "any" || vLower == "all" {
+		return "Any"
+	}
+	if vLower == "new" {
 		return "New"
 	}
-	// Keep it flexible, but normalize common values.
-	if strings.EqualFold(raw, "new") {
-		return "New"
+	if vLower == "used" {
+		return "Used"
 	}
-	return raw
+	return v
 }
