@@ -137,7 +137,7 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			  JOIN stores s ON s.id = o.store_id
 			  WHERE o.product_id = p.id
 			    AND o.active = true
-			    AND ($9 = 'Any' OR COALESCE(o.condition,'New') = $9)
+			    AND o.condition = $9
 			    AND s.name = ANY($10)
 			  ORDER BY o.price ASC
 			  LIMIT 1
@@ -225,7 +225,7 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND ($2 = 'Any' OR COALESCE(o.condition,'New') = $2)
+			  AND o.condition = $2
 			  AND s.name = ANY($3)
 			ORDER BY o.price ASC;
 		`, id, condition, pq.Array(stores))
@@ -287,7 +287,7 @@ func GetOffers(conn *sql.DB) gin.HandlerFunc {
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND ($2 = 'Any' OR COALESCE(o.condition,'New') = $2)
+			  AND o.condition = $2
 			  AND s.name = ANY($3)
 			ORDER BY o.price ASC;
 		`, id, condition, pq.Array(stores))
