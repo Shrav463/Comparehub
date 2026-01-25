@@ -721,8 +721,124 @@ FROM products p JOIN stores s ON s.name='Walmart'
 WHERE p.name='JBL Tune 670NC Bluetooth Wireless On-Ear Headphones' AND p.brand='JBL'
 ON CONFLICT (product_id, store_id, url) DO UPDATE SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
 
-INSERT INTO stores (name) VALUES
-  ('Amazon'),
-  ('Best Buy'),
-  ('Walmart')
-ON CONFLICT (name) DO NOTHING;
+-- ==========================================================
+-- FIX MISSING PRODUCTS (UI names) + ADD OFFERS so bestPrice shows
+-- ==========================================================
+
+-- 1) Add MacBook Air M2 if UI is using this name
+INSERT INTO products (name, brand, category, description, image_url)
+VALUES
+  ('MacBook Air M2', 'Apple', 'Laptops', 'Lightweight laptop with Apple M2 chip and long battery life.', 'https://picsum.photos/seed/macairm2/800/600')
+ON CONFLICT (name, brand) DO NOTHING;
+
+-- 2) Add MacBook Air M3 (UI-friendly name) if UI uses this name
+INSERT INTO products (name, brand, category, description, image_url)
+VALUES
+  ('MacBook Air M3', 'Apple', 'Laptops', 'Latest MacBook Air with improved performance using Apple M3 chip.', 'https://picsum.photos/seed/macairm3simple/800/600')
+ON CONFLICT (name, brand) DO NOTHING;
+
+-- 3) Add OFFERS for MacBook Air M2
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 899.00, 4.7, 'https://www.amazon.com/s?k=macbook+air+m2', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='MacBook Air M2' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 879.00, 4.6, 'https://www.bestbuy.com/site/searchpage.jsp?st=macbook%20air%20m2', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='MacBook Air M2' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+-- 4) Add OFFERS for MacBook Air M3 (UI-friendly)
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 1099.00, 4.8, 'https://www.amazon.com/s?k=macbook+air+m3', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='MacBook Air M3' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 1049.00, 4.7, 'https://www.bestbuy.com/site/searchpage.jsp?st=macbook%20air%20m3', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='MacBook Air M3' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+-- 5) Ensure Galaxy S24 offers exist (if UI name = "Samsung Galaxy S24", add alias)
+INSERT INTO products (name, brand, category, description, image_url)
+VALUES
+  ('Samsung Galaxy S24', 'Samsung', 'Phones', 'Samsung Galaxy S24 flagship phone.', 'https://picsum.photos/seed/samsunggalaxys24/800/600')
+ON CONFLICT (name, brand) DO NOTHING;
+
+-- Offers for "Samsung Galaxy S24"
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 899.00, 4.6, 'https://www.amazon.com/s?k=samsung+galaxy+s24', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='Samsung Galaxy S24' AND p.brand='Samsung'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 879.99, 4.5, 'https://www.bestbuy.com/site/searchpage.jsp?st=samsung%20galaxy%20s24', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='Samsung Galaxy S24' AND p.brand='Samsung'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, active=true, last_seen_at=NOW();
+
+-- ==========================================================
+-- FIX: Ensure these 3 products always have offers so bestPrice != 0
+-- Products:
+-- 1) MacBook Air M2
+-- 2) MacBook Air M3
+-- 3) Samsung Galaxy S24
+-- ==========================================================
+
+-- 1) MacBook Air M2 (Amazon + BestBuy)
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 899.00, 4.7, 'https://www.amazon.com/s?k=macbook+air+m2', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='MacBook Air M2' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 879.00, 4.6, 'https://www.bestbuy.com/site/searchpage.jsp?st=macbook%20air%20m2', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='MacBook Air M2' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
+
+
+-- 2) MacBook Air M3 (Amazon + BestBuy)
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 1099.00, 4.8, 'https://www.amazon.com/s?k=macbook+air+m3', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='MacBook Air M3' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 1049.00, 4.7, 'https://www.bestbuy.com/site/searchpage.jsp?st=macbook%20air%20m3', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='MacBook Air M3' AND p.brand='Apple'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
+
+
+-- 3) Samsung Galaxy S24 (Amazon + BestBuy)
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 899.00, 4.6, 'https://www.amazon.com/s?k=samsung+galaxy+s24', 'New', true
+FROM products p JOIN stores s ON s.name='Amazon'
+WHERE p.name='Samsung Galaxy S24' AND p.brand='Samsung'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
+
+INSERT INTO offers (product_id, store_id, price, rating, url, condition, active)
+SELECT p.id, s.id, 879.99, 4.5, 'https://www.bestbuy.com/site/searchpage.jsp?st=samsung%20galaxy%20s24', 'New', true
+FROM products p JOIN stores s ON s.name='BestBuy'
+WHERE p.name='Samsung Galaxy S24' AND p.brand='Samsung'
+ON CONFLICT (product_id, store_id, url) DO UPDATE
+SET price=EXCLUDED.price, rating=EXCLUDED.rating, condition=EXCLUDED.condition, active=true, last_seen_at=NOW();
