@@ -231,7 +231,8 @@ export default function Home() {
   <div className="flex items-center justify-between mb-4">
     <h2 className="text-lg font-extrabold text-slate-900">
       How CompareHub works
-    </h2
+    </h2>
+   
   </div>
 
   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
