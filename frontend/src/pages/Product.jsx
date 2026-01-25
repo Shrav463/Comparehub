@@ -73,21 +73,6 @@ function getSpecRows(category) {
   return base;
 }
 
-// ✅ helpers for price fallback
-function firstNumber(...vals) {
-  for (const v of vals) {
-    if (v === null || v === undefined || v === "") continue;
-    const n = Number(v);
-    if (!Number.isNaN(n) && Number.isFinite(n)) return n;
-  }
-  return null;
-}
-
-function formatMoney(n) {
-  if (n === null) return "—";
-  return `$${Number(n).toFixed(2)}`;
-}
-
 export default function Product() {
   const { id } = useParams();
   const [p, setP] = useState(null);
@@ -122,20 +107,6 @@ export default function Product() {
   }, [p, offerSort]);
 
   const bestOffer = offers.length ? offers[0] : null;
-
-  // ✅ fallback original/base price when no offers
-  const originalPrice = useMemo(() => {
-    return firstNumber(
-      p?.originalPrice,
-      p?.msrp,
-      p?.basePrice,
-      p?.price,
-      p?.listPrice
-    );
-  }, [p]);
-
-  const heroPrice = bestOffer?.price != null ? Number(bestOffer.price) : originalPrice;
-  const heroLabel = bestOffer ? "Best price" : "Original price";
 
   const toggleWishlist = () => {
     const current = loadWishlist();
@@ -261,18 +232,14 @@ export default function Product() {
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="text-xs text-slate-600">{heroLabel}</div>
-
+              <div className="text-xs text-slate-600">Best price</div>
               <div className="text-xl font-extrabold text-slate-900">
-                {formatMoney(heroPrice)}
+                {bestOffer ? `$${Number(bestOffer.price).toFixed(2)}` : "—"}
               </div>
-
               <div className="text-xs text-slate-600 mt-1">
-             {bestOffer
-  ? `$${Number(bestOffer.price).toFixed(2)}`
-  : p.originalPrice
-    ? `$${Number(p.originalPrice).toFixed(2)}`
-    : "—"}
+                {bestOffer
+                  ? `${bestOffer.source} • ⭐ ${Number(bestOffer.rating || 0).toFixed(1)}`
+                  : "No offers yet"}
               </div>
             </div>
 
@@ -349,10 +316,7 @@ export default function Product() {
                 <div className="text-xs font-semibold text-slate-600">Key features</div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {p.specs.key_features.map((x, idx) => (
-                    <span
-                      key={idx}
-                      className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
-                    >
+                    <span key={idx} className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
                       {x}
                     </span>
                   ))}
@@ -450,14 +414,7 @@ export default function Product() {
         ))}
 
         {offers.length === 0 && (
-          <div className="px-5 py-6 text-slate-600">
-            No offers available for this product yet.
-            {originalPrice != null ? (
-              <span className="ml-2 text-slate-700">
-                Original price: <span className="font-semibold">{formatMoney(originalPrice)}</span>
-              </span>
-            ) : null}
-          </div>
+          <div className="px-5 py-6 text-slate-600">No offers available for this product yet.</div>
         )}
       </div>
     </div>
