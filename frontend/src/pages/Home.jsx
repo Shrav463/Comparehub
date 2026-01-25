@@ -4,38 +4,10 @@ import { resolveProductImage } from "../lib/resolveProductImage";
 import { normalizeCategory } from "../lib/normalizeCategory";
 import { API_BASE, withFilters } from "../lib/api";
 
-// ---------- helpers ----------
-function safeNumber(v) {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-function moneyOrDash(n) {
-  const x = safeNumber(n);
-  if (x === null) return "—";
+function money(n) {
+  const x = Number(n ?? 0);
+  if (Number.isNaN(x)) return "$0.00";
   return `$${x.toFixed(2)}`;
-}
-
-// pick the first valid numeric value from possible fields
-function pickPrice(p) {
-  // Best price (computed from offers) should win if present
-  const best = safeNumber(p?.bestPrice);
-
-  // Fallbacks for "original price" when no offers
-  const original = safeNumber(p?.originalPrice)
-    ?? safeNumber(p?.msrp)
-    ?? safeNumber(p?.basePrice)
-    ?? safeNumber(p?.price)
-    ?? safeNumber(p?.listPrice);
-
-  const hasOffers = Boolean(p?.bestSource) || best !== null;
-
-  return {
-    displayPrice: hasOffers ? best : original,
-    label: hasOffers ? "Best price" : "Original price",
-    hasOffers,
-  };
 }
 
 function Badge({ children, tone = "slate" }) {
@@ -228,105 +200,105 @@ export default function Home() {
                 {topPicks.length === 0 ? (
                   <div className="text-sm text-slate-600">No products yet. Seed data or sync a feed.</div>
                 ) : (
-                  topPicks.map((p) => {
-                    const { displayPrice, label, hasOffers } = pickPrice(p);
-
-                    return (
-                      <Link
-                        key={p.id}
-                        to={`/product/${p.id}`}
-                        className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 hover:bg-slate-50 transition"
-                      >
-                        <img
-                          src={resolveProductImage(p)}
-                          alt={p.name}
-                          className="h-14 w-14 rounded-xl object-cover border border-slate-200"
-                          loading="lazy"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate font-semibold text-slate-900">{p.name}</div>
-                          <div className="text-xs text-slate-600 truncate">
-                            {hasOffers && p.bestSource
-                              ? `${p.bestSource} • ⭐ ${Number(p.bestRating || 0).toFixed(1)}`
-                              : "No offers"}
-                          </div>
-                          {!hasOffers ? (
-                            <div className="text-[11px] text-slate-500 truncate">{label}</div>
-                          ) : null}
+                  topPicks.map((p) => (
+                    <Link
+                      key={p.id}
+                      to={`/product/${p.id}`}
+                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 hover:bg-slate-50 transition"
+                    >
+                      <img
+                        src={resolveProductImage(p)}
+                        alt={p.name}
+                        className="h-14 w-14 rounded-xl object-cover border border-slate-200"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-semibold text-slate-900">{p.name}</div>
+                        <div className="text-xs text-slate-600 truncate">
+                          {p.bestSource ? `${p.bestSource} • ⭐ ${(Number(p.bestRating || 0)).toFixed(1)}` : "No offers"}
                         </div>
-                        <div className="text-sm font-extrabold text-slate-900">
-                          {moneyOrDash(displayPrice)}
-                        </div>
-                      </Link>
-                    );
-                  })
+                      </div>
+                      <div className="text-sm font-extrabold text-slate-900">{money(p.bestPrice)}</div>
+                    </Link>
+                  ))
                 )}
               </div>
             </div>
           </div>
         </div>
+{/* HOW IT WORKS */}
+<div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-lg font-extrabold text-slate-900">
+      How CompareHub works
+    </h2
+  </div>
 
-        {/* HOW IT WORKS */}
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-extrabold text-slate-900">How CompareHub works</h2>
-          </div>
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    {/* Card 1 */}
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="font-bold text-slate-900 mb-1">
+        1) Browse & Filter
+      </div>
+      <p className="text-sm text-slate-600 mb-3">
+        Search products, filter by category or brand, and quickly narrow down
+        items that match your needs.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Badge>Search</Badge>
+        <Badge>Filters</Badge>
+        <Badge>Sort</Badge>
+      </div>
+    </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Card 1 */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-bold text-slate-900 mb-1">1) Browse & Filter</div>
-              <p className="text-sm text-slate-600 mb-3">
-                Search products, filter by category or brand, and quickly narrow down items that match your needs.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge>Search</Badge>
-                <Badge>Filters</Badge>
-                <Badge>Sort</Badge>
-              </div>
-            </div>
+    {/* Card 2 */}
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="font-bold text-slate-900 mb-1">
+        2) Compare (2–4)
+      </div>
+      <p className="text-sm text-slate-600 mb-3">
+        Select up to four products and compare price, store, rating, and key
+        specs side-by-side.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="green">Compare</Badge>
+        <Badge tone="blue">Specs</Badge>
+        <Badge tone="amber">Best deal</Badge>
+      </div>
+    </div>
 
-            {/* Card 2 */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-bold text-slate-900 mb-1">2) Compare (2–4)</div>
-              <p className="text-sm text-slate-600 mb-3">
-                Select up to four products and compare price, store, rating, and key specs side-by-side.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone="green">Compare</Badge>
-                <Badge tone="blue">Specs</Badge>
-                <Badge tone="amber">Best deal</Badge>
-              </div>
-            </div>
+    {/* Card 3 */}
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="font-bold text-slate-900 mb-1">
+        3) Best Offer Highlight
+      </div>
+      <p className="text-sm text-slate-600 mb-3">
+        For each product, the best available offer is highlighted so users can
+        instantly see the lowest price and top store.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="blue">Lowest price</Badge>
+        <Badge tone="green">Top rating</Badge>
+      </div>
+    </div>
 
-            {/* Card 3 */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-bold text-slate-900 mb-1">3) Best Offer Highlight</div>
-              <p className="text-sm text-slate-600 mb-3">
-                For each product, the best available offer is highlighted so users can instantly see the lowest price and
-                top store.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone="blue">Lowest price</Badge>
-                <Badge tone="green">Top rating</Badge>
-              </div>
-            </div>
-
-            {/* Card 4 */}
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="font-bold text-slate-900 mb-1">4) Simple Buying Flow</div>
-              <p className="text-sm text-slate-600 mb-3">
-                Review details, explore offers, and jump directly to the store with the best deal — fast and
-                distraction-free.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone="rose">Clean UI</Badge>
-                <Badge>Fast</Badge>
-                <Badge>Easy</Badge>
-              </div>
-            </div>
-          </div>
-        </div>
+    {/* Card 4 */}
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="font-bold text-slate-900 mb-1">
+        4) Simple Buying Flow
+      </div>
+      <p className="text-sm text-slate-600 mb-3">
+        Review details, explore offers, and jump directly to the store with the
+        best deal — fast and distraction-free.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Badge tone="rose">Clean UI</Badge>
+        <Badge>Fast</Badge>
+        <Badge>Easy</Badge>
+      </div>
+    </div>
+  </div>
+</div>
 
         {/* FILTER ROW */}
         <div className="border-t border-slate-200 bg-white p-4 md:p-5">
@@ -473,8 +445,6 @@ export default function Home() {
               const isSelected = selected.includes(p.id);
               const cat = normalizeCategory(p.category);
 
-              const { displayPrice, label, hasOffers } = pickPrice(p);
-
               return (
                 <div
                   key={p.id}
@@ -490,15 +460,8 @@ export default function Home() {
                       />
 
                       <div className="absolute top-3 left-3 flex flex-wrap gap-2">
-                        {hasOffers && p.bestSource ? (
-                          <Badge tone="blue">{p.bestSource}</Badge>
-                        ) : (
-                          <Badge tone="slate">No offers</Badge>
-                        )}
-
-                        {(hasOffers ? p.bestRating : null) != null ? (
-                          <Badge tone="green">⭐ {Number(p.bestRating || 0).toFixed(1)}</Badge>
-                        ) : null}
+                        {p.bestSource ? <Badge tone="blue">{p.bestSource}</Badge> : <Badge tone="slate">No offers</Badge>}
+                        {p.bestRating != null ? <Badge tone="green">⭐ {Number(p.bestRating || 0).toFixed(1)}</Badge> : null}
                       </div>
                     </div>
 
@@ -510,10 +473,8 @@ export default function Home() {
 
                       <div className="mt-3 flex items-end justify-between">
                         <div>
-                          <div className="text-lg font-extrabold text-slate-900">
-                            {moneyOrDash(displayPrice)}
-                          </div>
-                          <div className="text-xs text-slate-500">{label}</div>
+                          <div className="text-lg font-extrabold text-slate-900">{money(p.bestPrice)}</div>
+                          <div className="text-xs text-slate-500">Best price</div>
                         </div>
 
                         <div className="text-sm font-semibold text-indigo-700">View offers →</div>
@@ -527,11 +488,7 @@ export default function Home() {
                       type="button"
                       onClick={() => toggleSelect(p.id)}
                       className={`flex-1 rounded-2xl border px-4 py-2.5 text-sm font-semibold transition
-                        ${
-                          isSelected
-                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                            : "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"
-                        }`}
+                        ${isSelected ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"}`}
                       title="Select for comparison"
                     >
                       {isSelected ? "Selected" : "Compare"}
