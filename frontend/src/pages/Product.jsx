@@ -268,11 +268,11 @@ export default function Product() {
               </div>
 
               <div className="text-xs text-slate-600 mt-1">
-                {bestOffer
-                  ? `${bestOffer.source} • ⭐ ${Number(bestOffer.rating || 0).toFixed(1)}`
-                  : originalPrice != null
-                    ? "No offers yet (showing original price)"
-                    : "No offers yet"}
+             {bestOffer
+  ? `$${Number(bestOffer.price).toFixed(2)}`
+  : p.originalPrice
+    ? `$${Number(p.originalPrice).toFixed(2)}`
+    : "—"}
               </div>
             </div>
 
