@@ -301,7 +301,14 @@ export default function Analytics() {
                         </Link>
                       </td>
                       <td className="px-5 py-4 font-extrabold text-slate-900">
-                        {p.bestPrice != null ? money(p.bestPrice) : "—"}
+                        {p.bestPrice != null ? const displayPrice =
+  Number(p.bestPrice) > 0
+    ? p.bestPrice
+    : (p.originalPrice ?? 0);
+
+<div className="text-lg font-extrabold text-slate-900">
+  {money(displayPrice)}
+</div> : "—"}
                       </td>
                       <td className="px-5 py-4 text-slate-700">
                         {p.bestSource || "—"}
