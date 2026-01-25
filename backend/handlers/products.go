@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lib/pq"
-
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 type ProductRow struct {
@@ -24,7 +23,6 @@ type ProductRow struct {
 	BestRating float64 `json:"bestRating"`
 	BestURL    string  `json:"bestUrl"`
 
-	// Optional extras derived from specs_json (if present)
 	ReviewCount *int64 `json:"reviewCount,omitempty"`
 }
 
@@ -35,56 +33,42 @@ type OfferRow struct {
 	URL    string   `json:"url"`
 }
 
-/*
-	IMPORTANT FIX:
-	Your DB has store names like: "BestBuy"
-	But your UI sends: "Best Buy"
-	So queries that filter by stores return zero rows -> bestPrice becomes 0.00
-
-	This normalizes incoming stores into DB canonical names.
-*/
+// Normalize store names (UI -> DB)
 func normalizeStoreName(s string) string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return ""
 	}
-
-	// Normalize any "Best Buy" variants to DB value "BestBuy"
 	if strings.EqualFold(s, "Best Buy") || strings.EqualFold(s, "BestBuy") {
 		return "BestBuy"
 	}
-
-	// Keep as-is for the rest (Amazon, Walmart, Apple, etc.)
 	return s
 }
 
 func normalizeStores(stores []string) []string {
 	out := make([]string, 0, len(stores))
 	seen := map[string]bool{}
-
 	for _, s := range stores {
 		n := normalizeStoreName(s)
 		if n == "" {
 			continue
 		}
-		if !seen[strings.ToLower(n)] {
-			seen[strings.ToLower(n)] = true
+		key := strings.ToLower(n)
+		if !seen[key] {
+			seen[key] = true
 			out = append(out, n)
 		}
 	}
 	return out
 }
 
+// If you already have this in another file, remove this duplicate.
+
 func ListProducts(conn *sql.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		storesParam := c.Query("stores")
 		condition := parseConditionParam(c.Query("condition"))
 
-		// Parse then normalize stores for DB match
-		stores := parseStoresParam(storesParam)
-		stores = normalizeStores(stores)
-
-		// If still empty, default to DB store names
+		stores := normalizeStores(parseStoresParam(c.Query("stores")))
 		if len(stores) == 0 {
 			stores = []string{"Amazon", "BestBuy", "Walmart"}
 		}
@@ -108,6 +92,7 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 		var minPrice *float64
 		var maxPrice *float64
 		var minRating *float64
+
 		if minPriceStr != "" {
 			if v, err := strconv.ParseFloat(minPriceStr, 64); err == nil {
 				minPrice = &v
@@ -131,8 +116,7 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			order = "best_rating DESC"
 		}
 
-		// Best offer per product using LATERAL join, plus optional filters.
-		// We also LEFT JOIN product_specs to surface review_count in list views.
+		// ✅ FIX: COALESCE(o.condition,'New') so NULL condition rows still match
 		query := `
 			SELECT
 			  p.id, p.name, COALESCE(p.brand,''), COALESCE(p.category,''), COALESCE(p.description,''), COALESCE(p.image_url,''),
@@ -153,9 +137,13 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			  JOIN stores s ON s.id = o.store_id
 			  WHERE o.product_id = p.id
 			    AND o.active = true
-			    AND o.condition = $9
-			    AND s.name = ANY($10)
-			  ORDER BY o.price ASC
+			  -- Prefer offers that match the requested condition & stores, but ALWAYS
+			  -- fall back to any active offer so best_price never becomes 0.00 just
+			  -- because filters don't match exactly.
+			  ORDER BY
+			    CASE WHEN ($9 = 'Any' OR COALESCE(o.condition,'New') = $9) THEN 0 ELSE 1 END,
+			    CASE WHEN s.name = ANY($10) THEN 0 ELSE 1 END,
+			    o.price ASC
 			  LIMIT 1
 			) bo ON true
 			WHERE
@@ -169,7 +157,11 @@ func ListProducts(conn *sql.DB) gin.HandlerFunc {
 			LIMIT $7 OFFSET $8;
 		`
 
-		rows, err := conn.Query(query, q, category, brand, minPrice, maxPrice, minRating, limit, offset, condition, pq.Array(stores))
+		rows, err := conn.Query(
+			query,
+			q, category, brand, minPrice, maxPrice, minRating, limit, offset,
+			condition, pq.Array(stores),
+		)
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
@@ -199,8 +191,7 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		condition := parseConditionParam(c.Query("condition"))
 
-		stores := parseStoresParam(c.Query("stores"))
-		stores = normalizeStores(stores)
+		stores := normalizeStores(parseStoresParam(c.Query("stores")))
 		if len(stores) == 0 {
 			stores = []string{"Amazon", "BestBuy", "Walmart"}
 		}
@@ -217,7 +208,6 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 			LastUpdated *string    `json:"lastUpdated,omitempty"`
 		}
 
-		// 1) Product
 		err := conn.QueryRow(`
 			SELECT id, name, COALESCE(brand,''), COALESCE(category,''), COALESCE(description,''), COALESCE(image_url,'')
 			FROM products
@@ -233,16 +223,16 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 2) Offers
 		rows, err := conn.Query(`
 			SELECT s.name, o.price, o.rating, o.url
 			FROM offers o
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND o.condition = $2
-			  AND s.name = ANY($3)
-			ORDER BY o.price ASC;
+			ORDER BY
+			  CASE WHEN ($2 = 'Any' OR COALESCE(o.condition,'New') = $2) THEN 0 ELSE 1 END,
+			  CASE WHEN s.name = ANY($3) THEN 0 ELSE 1 END,
+			  o.price ASC;
 		`, id, condition, pq.Array(stores))
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
@@ -261,7 +251,6 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 		}
 		p.Offers = offers
 
-		// 3) Specs (optional)
 		var raw json.RawMessage
 		var last sql.NullString
 		err = conn.QueryRow(`
@@ -269,6 +258,7 @@ func GetProduct(conn *sql.DB) gin.HandlerFunc {
 			FROM product_specs
 			WHERE product_id = $1;
 		`, id).Scan(&raw, &last)
+
 		if err == nil {
 			var m map[string]any
 			if e := json.Unmarshal(raw, &m); e == nil {
@@ -291,8 +281,7 @@ func GetOffers(conn *sql.DB) gin.HandlerFunc {
 		id := c.Param("id")
 		condition := parseConditionParam(c.Query("condition"))
 
-		stores := parseStoresParam(c.Query("stores"))
-		stores = normalizeStores(stores)
+		stores := normalizeStores(parseStoresParam(c.Query("stores")))
 		if len(stores) == 0 {
 			stores = []string{"Amazon", "BestBuy", "Walmart"}
 		}
@@ -303,9 +292,10 @@ func GetOffers(conn *sql.DB) gin.HandlerFunc {
 			JOIN stores s ON s.id = o.store_id
 			WHERE o.product_id = $1
 			  AND o.active = true
-			  AND o.condition = $2
-			  AND s.name = ANY($3)
-			ORDER BY o.price ASC;
+			ORDER BY
+			  CASE WHEN ($2 = 'Any' OR COALESCE(o.condition,'New') = $2) THEN 0 ELSE 1 END,
+			  CASE WHEN s.name = ANY($3) THEN 0 ELSE 1 END,
+			  o.price ASC;
 		`, id, condition, pq.Array(stores))
 		if err != nil {
 			c.JSON(500, gin.H{"error": err.Error()})
