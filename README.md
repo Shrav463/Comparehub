@@ -1,6 +1,9 @@
 CompareHub — Price Comparison Web App
+<img width="1891" height="937" alt="image" src="https://github.com/user-attachments/assets/4c5bf57c-197c-48f3-ac72-024c27b9662b" />
+
 
 CompareHub is a web application that lets users search for products and instantly compare prices, ratings, and offers across multiple online stores — helping shoppers make informed buying decisions in one place.
+Live link: https://comparehub-delta.vercel.app/
 
 🚀 What It Does
 
